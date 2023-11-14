@@ -1,17 +1,24 @@
 // Test ID: IIDSAT
 
-import {
-  calcMinutesLeft,
-  formatCurrency,
-  formatDate,
-} from '../../util/helpers';
-import { getOrder } from '../../services/apiRestaurant';
-import { useLoaderData } from 'react-router-dom';
-import OrderItem from './OrderItem';
+import { calcMinutesLeft, formatCurrency, formatDate } from '../../util/helpers'
+import { getOrder } from '../../services/apiRestaurant'
+import { useFetcher, useLoaderData } from 'react-router-dom'
+import OrderItem from './OrderItem'
+import { useEffect } from 'react'
+import UpdateOrder from './UpdateOrder'
 
 function Order() {
   // Everyone can search for all orders, so for privacy reasons we're gonna gonna exclude names or address, these are only for the restaurant staff
-  const order = useLoaderData();
+  const fetcher = useFetcher()
+
+  useEffect(
+    function () {
+      if (fetcher.state === 'idle' && !fetcher.data) fetcher.load('/menu')
+    },
+    [fetcher],
+  )
+
+  const order = useLoaderData()
   const {
     id,
     status,
@@ -20,9 +27,8 @@ function Order() {
     orderPrice,
     estimatedDelivery,
     cart,
-  } = order;
-  const deliveryIn = calcMinutesLeft(estimatedDelivery);
-
+  } = order
+  const deliveryIn = calcMinutesLeft(estimatedDelivery)
   return (
     <div className="space-y-8 px-4 py-6">
       <div className="flex flex-wrap items-center justify-between">
@@ -53,7 +59,15 @@ function Order() {
 
       <ul className="dive-stone-200 divide-y border-b border-t">
         {cart.map((item) => (
-          <OrderItem item={item} key={item.id} />
+          <OrderItem
+            item={item}
+            key={item.pizzaId}
+            isLoadingIngredients={fetcher.state === 'loading'}
+            ingredients={
+              fetcher.data?.find((ele) => ele.id === item.pizzaId)
+                .ingredients ?? []
+            }
+          />
         ))}
       </ul>
 
@@ -70,13 +84,15 @@ function Order() {
           To pay on delivery: {formatCurrency(orderPrice + priorityPrice)}
         </p>
       </div>
+
+      {!priority && <UpdateOrder />}
     </div>
-  );
+  )
 }
 
 export async function loader({ params }) {
-  const order = await getOrder(params.orderId);
-  return order;
+  const order = await getOrder(params.orderId)
+  return order
 }
 
-export default Order;
+export default Order
